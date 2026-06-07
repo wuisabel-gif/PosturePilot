@@ -8,6 +8,8 @@ The system mounts an ultrasonic distance sensor on the backrest of a chair and c
 
 When prolonged slouching is detected, the system provides visual feedback through an LCD display and audio reminders through an MP3-TF-16P audio playback module and speaker.
 
+> **Keywords:** Arduino Uno R3 · ATmega328P · HC-SR04 · Embedded Systems · Human Factors Engineering · Ergonomics · Real-Time Monitoring · Sensor Processing · MP3-TF-16P · C Programming · AVR Development · Assistive Technology
+
 ## Motivation
 
 Many students and engineers spend hours sitting at a desk and gradually develop poor posture without realizing it. Existing posture-monitoring products are often expensive, require wearable hardware, or rely on cameras that introduce privacy concerns.
