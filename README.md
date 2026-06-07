@@ -100,7 +100,7 @@ The LCD Keypad Shield plugs directly onto the Arduino Uno and provides:
 - `SELECT` button used for calibration
 - Built-in navigation buttons
 
-LCD wiring follows the pin mapping used by [lcd.c](/asset/lcd.c), and the `SELECT` button is read on `A0 / ADC0`.
+LCD wiring follows the pin mapping used by [lcd.c](lcd.c), and the `SELECT` button is read on `A0 / ADC0`.
 
 ## Calibration Procedure
 
