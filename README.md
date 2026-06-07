@@ -100,7 +100,7 @@ The LCD Keypad Shield plugs directly onto the Arduino Uno and provides:
 - `SELECT` button used for calibration
 - Built-in navigation buttons
 
-LCD wiring follows the pin mapping used by [lcd.c](/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/lcd.c), and the `SELECT` button is read on `A0 / ADC0`.
+LCD wiring follows the pin mapping used by [lcd.c](/asset/lcd.c), and the `SELECT` button is read on `A0 / ADC0`.
 
 ## Calibration Procedure
 
@@ -190,15 +190,15 @@ The initial design is finished. I used a massage back pad and a hair clip to sec
 
 ### Ultrasonic Sensor Mounted on the Back Pad
 
-<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Ultrasonic_Sensor.jpg" alt="Ultrasonic sensor mounted on massage back pad" width="320" />
+<img src="asset/Ultrasonic_Sensor.jpg" alt="Ultrasonic sensor mounted on massage back pad" width="320" />
 
 ### Full Chair Setup
 
-<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Arm_chair.jpg" alt="Full chair setup with mounted sensor and electronics" width="320" />
+<img src="asset/Arm_chair.jpg" alt="Full chair setup with mounted sensor and electronics" width="320" />
 
 ### Breadboard and Arduino on Chair Arm
 
-<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Breadboard.jpg" alt="Breadboard and Arduino mounted on chair arm" width="320" />
+<img src="asset/Breadboard.jpg" alt="Breadboard and Arduino mounted on chair arm" width="320" />
 
 ## Cost Table
 
