@@ -190,15 +190,15 @@ The initial design is finished. I used a massage back pad and a hair clip to sec
 
 ### Ultrasonic Sensor Mounted on the Back Pad
 
-![Ultrasonic sensor mounted on massage back pad](/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Ultrasonic_Sensor.jpg)
+<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Ultrasonic_Sensor.jpg" alt="Ultrasonic sensor mounted on massage back pad" width="320" />
 
 ### Full Chair Setup
 
-![Full chair setup with mounted sensor and electronics](/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Arm_chair.jpg)
+<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Arm_chair.jpg" alt="Full chair setup with mounted sensor and electronics" width="320" />
 
 ### Breadboard and Arduino on Chair Arm
 
-![Breadboard and Arduino mounted on chair arm](/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Breadboard.jpg)
+<img src="/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/asset/Breadboard.jpg" alt="Breadboard and Arduino mounted on chair arm" width="320" />
 
 ## Cost Table
 
