@@ -224,6 +224,12 @@ The initial design is finished. I used a massage back pad and a hair clip to sec
 - Real-time monitoring
 - Human factors engineering
 
+## Acknowledgment
+
+I learned much of the low-level embedded programming style used in this project through USC's EE109 course, especially topics such as LCD interfacing and pin change interrupts. If you are interested in the course material and lab structure, you can read through the EE109 lab page here:
+
+[USC EE109 Labs](https://bytes.usc.edu/ee109/labs/)
+
 ## Current Code Wiring Summary
 
 - LCD: uses the existing [lcd.c](/Users/harvardsummer/Library/Mobile%20Documents/com~apple~CloudDocs/GitHub/PosturePilot/lcd.c) shield wiring
