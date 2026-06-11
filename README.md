@@ -6,7 +6,7 @@ Posture Pilot is an embedded ergonomic monitoring system designed to help users 
 
 The system mounts an ultrasonic distance sensor on the backrest of a chair and continuously measures the distance between the chair and the user's back. After a one-time calibration step, Posture Pilot tracks posture drift relative to the user's personal baseline and detects slouching behavior in real time.
 
-When prolonged slouching is detected, the system provides visual feedback through an LCD display and audio reminders through an MP3-TF-16P audio playback module and speaker.
+When prolonged slouching is detected, the system provides visual feedback through an LCD display and audio reminders through an MP3-TF-16P audio playback module and speaker. The current firmware also filters multiple ultrasonic readings before making a posture decision, which helps reduce false alerts caused by noise or small body shifts.
 
 > **Keywords:** Arduino Uno R3 · ATmega328P · HC-SR04 · Embedded Systems · Human Factors Engineering · Ergonomics · Real-Time Monitoring · Sensor Processing · MP3-TF-16P · C Programming · AVR Development · Assistive Technology
 
@@ -24,7 +24,11 @@ Posture Pilot explores a low-cost embedded alternative using simple distance sen
 - Personalized posture calibration
 - Chair-mounted sensing system
 - LCD status display
+- Startup voice prompt
 - Voice-based posture reminders
+- Audio break reminder
+- Filtered ultrasonic sensing
+- Sustained-slouch detection
 - Adjustable slouch threshold
 - Fully standalone embedded system
 
@@ -87,6 +91,13 @@ Posture Pilot explores a low-cost embedded alternative using simple distance sen
 
 The current code only transmits commands from the Arduino to the MP3 module. The MP3 `TX` pin is not used right now.
 
+Recommended support parts for the MP3 module:
+
+- `1k ohm` resistor between Arduino `D11` and MP3 `RX`
+- `100 uF` capacitor across MP3 `VCC` and `GND`
+- `0.1 uF` ceramic bypass capacitor near the module power pins
+- FAT32-formatted microSD / TF card
+
 ### Speaker
 
 | Speaker | MP3-TF-16P |
@@ -112,9 +123,16 @@ LCD wiring follows the pin mapping used by [lcd.c](lcd.c), and the `SELECT` butt
 4. The system announces: `Calibration complete.`
 5. Continuous posture monitoring begins.
 
+The baseline is captured from several filtered distance readings instead of a single raw measurement, which makes calibration more stable.
+
 ## Detection Logic
 
 The HC-SR04 continuously measures the distance between the chair back and the user's back.
+
+The current firmware improves reliability in two ways:
+
+- It filters several ultrasonic samples and uses a trimmed average before updating the posture state.
+- It requires several consecutive slouch-like readings before triggering the slouch condition.
 
 ### Good Posture
 
@@ -130,7 +148,7 @@ LCD:
 
 `Current Distance > Baseline Distance`
 
-When the distance exceeds the configured threshold:
+When the distance exceeds the configured threshold for several consecutive filtered readings:
 
 LCD:
 
@@ -149,12 +167,16 @@ Stored on the microSD card connected to the MP3-TF-16P module.
 ```text
 /mp3/0001.mp3  Please sit upright.
 /mp3/0002.mp3  Calibration complete.
+/mp3/0003.mp3  Time to take a break.
+/mp3/0004.mp3  System starting.
 ```
 
-These two prompts match the current code:
+These prompts match the current code:
 
 - Track `1`: slouch warning
 - Track `2`: calibration complete
+- Track `3`: break reminder
+- Track `4`: startup prompt
 
 ## Example LCD Screens
 
@@ -215,6 +237,33 @@ The initial design is finished. I used a massage back pad and a hair clip to sec
 
 **Estimated total cost:** `$55.50`
 
+## Hardware Integration Notes
+
+- Keep the ultrasonic sensor aimed as squarely as possible toward the user's mid-back so the reflected signal stays consistent.
+- Make sure the Arduino, MP3 module, and ultrasonic sensor all share the same ground.
+- Place the `100 uF` and `0.1 uF` capacitors close to the MP3-TF-16P power pins.
+- Use short jumper wires around the MP3 module and speaker to reduce noise and accidental disconnects.
+- If MP3 playback causes resets or unstable distance readings, recheck grounding and consider a cleaner 5V supply path.
+- For a cleaner prototype, replace loose chair-arm wiring with zip ties, adhesive cable clips, or a small mounting plate.
+
+## Demo Script
+
+1. Power on the system and wait for the startup screen and startup audio.
+2. Press the LCD shield `SELECT` button while sitting upright.
+3. Show the calibration complete screen and audio prompt.
+4. Sit with good posture and show the stable `Posture Good` status.
+5. Deliberately slouch for several seconds to demonstrate sustained-slouch detection.
+6. Let the system play the posture warning audio.
+7. Explain that the code filters multiple sensor readings before deciding whether the user is slouching.
+
+## Testing Notes
+
+- Verify that calibration can be repeated multiple times without resetting power.
+- Confirm that the HC-SR04 returns stable readings at the expected back-to-chair distance.
+- Check that the TF card is readable and formatted correctly before final assembly.
+- Confirm that the audio files are named exactly `0001.mp3`, `0002.mp3`, `0003.mp3`, and `0004.mp3`.
+- Test both brief posture shifts and sustained slouching so the threshold can be tuned if needed.
+
 ## Technologies
 
 - Embedded C
@@ -240,5 +289,6 @@ I learned much of the low-level embedded programming style used in this project 
 - HC-SR04 `ECHO`: `D2 / PD2`
 - MP3-TF-16P `RX`: `D11 / PB3` through `1k` resistor
 - MP3-TF-16P `TX`: not used in the current code
+- Speaker: `SPK_1` and `SPK_2`
 
 2026 copyright wuisabel-gif
