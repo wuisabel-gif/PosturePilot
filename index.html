@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Posture Pilot — Embedded Ergonomic Monitor</title>
+<meta name="description" content="A low-cost, chair-mounted embedded system that watches your sitting posture with a single ultrasonic sensor — no camera, no wearable." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#090E13;
+    --ink-2:#0D141B;
+    --panel:#111B23;
+    --panel-2:#16242F;
+    --line:#22343F;
+    --line-soft:#1A2832;
+    --text:#DCE6EE;
+    --muted:#8395A2;
+    --muted-2:#5E707C;
+    --signal:#36D6E0;
+    --lcd-bl:#1A57D6;
+    --lcd-bl-2:#103e9e;
+    --lcd-ink:#EAF1FF;
+    --alert:#F6A52A;
+    --good:#48D38C;
+    --maxw:1140px;
+    --r:14px;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 78% -8%, rgba(54,214,224,.07), transparent 60%),
+      radial-gradient(900px 500px at 8% 8%, rgba(26,87,214,.10), transparent 55%),
+      var(--ink);
+    color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit}
+  img{max-width:100%;display:block}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* ---------- type ---------- */
+  h1,h2,h3{font-family:"Chakra Petch",sans-serif;font-weight:700;line-height:1.05;margin:0}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;
+    font-size:.74rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--signal);margin:0 0 18px;display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--signal);opacity:.7}
+  .mono{font-family:"IBM Plex Mono",monospace}
+
+  /* ---------- nav ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(10px);
+    background:linear-gradient(to bottom, rgba(9,14,19,.92), rgba(9,14,19,.62));
+    border-bottom:1px solid var(--line-soft);
+  }
+  .nav__inner{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:"Chakra Petch";font-weight:700;letter-spacing:.02em}
+  .brand .dot{
+    width:11px;height:11px;border-radius:50%;background:var(--signal);
+    box-shadow:0 0 0 4px rgba(54,214,224,.18), 0 0 14px rgba(54,214,224,.7);
+    animation:pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .nav__links{display:flex;gap:26px;font-size:.85rem;color:var(--muted)}
+  .nav__links a{text-decoration:none;transition:color .2s}
+  .nav__links a:hover{color:var(--text)}
+  @media(max-width:760px){.nav__links{display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{padding:74px 0 64px;position:relative}
+  .hero__grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .hero h1{font-size:clamp(2.7rem,7vw,5rem);letter-spacing:-.01em}
+  .hero h1 .b{display:block;color:var(--signal)}
+  .hero__sub{color:var(--muted);font-size:1.12rem;max-width:46ch;margin:22px 0 10px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 30px}
+  .chip{
+    font-family:"IBM Plex Mono";font-size:.72rem;letter-spacing:.04em;
+    border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--muted);
+    background:rgba(255,255,255,.012);
+  }
+  .cta{display:flex;gap:14px;flex-wrap:wrap}
+  .btn{
+    font-family:"Chakra Petch";font-weight:600;font-size:.95rem;
+    text-decoration:none;padding:13px 22px;border-radius:10px;transition:transform .15s,box-shadow .2s,background .2s;
+  }
+  .btn--primary{background:var(--signal);color:#04222a;box-shadow:0 8px 30px -10px rgba(54,214,224,.6)}
+  .btn--primary:hover{transform:translateY(-2px)}
+  .btn--ghost{border:1px solid var(--line);color:var(--text)}
+  .btn--ghost:hover{border-color:var(--signal);color:var(--signal)}
+
+  /* ---------- device / LCD signature ---------- */
+  .stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:26px}
+  .ping{position:relative;width:230px;height:124px}
+  .ping svg{width:100%;height:100%;overflow:visible}
+  .arc{fill:none;stroke:var(--signal);stroke-width:2;stroke-linecap:round;opacity:0}
+  .ping.sweep .a1{animation:arc 2.4s ease-out infinite}
+  .ping.sweep .a2{animation:arc 2.4s ease-out .35s infinite}
+  .ping.sweep .a3{animation:arc 2.4s ease-out .7s infinite}
+  @keyframes arc{0%{opacity:.0;transform:scale(.6)}18%{opacity:.85}100%{opacity:0;transform:scale(1.15)}}
+  .ping svg g.arcs{transform-origin:18px 62px}
+  .readout{
+    position:absolute;right:-6px;top:8px;text-align:right;font-family:"IBM Plex Mono";
+  }
+  .readout .big{font-size:1.5rem;color:var(--signal);letter-spacing:.02em;transition:color .3s}
+  .readout .small{font-size:.66rem;color:var(--muted);letter-spacing:.12em}
+
+  .device{
+    width:330px;max-width:88vw;
+    background:linear-gradient(180deg,#16222c,#0e171e);
+    border:1px solid var(--line);border-radius:18px;padding:18px 18px 14px;
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .lcd{
+    border-radius:8px;padding:16px 14px;position:relative;
+    background:
+      linear-gradient(180deg,var(--lcd-bl),var(--lcd-bl-2));
+    box-shadow:inset 0 0 26px rgba(0,0,0,.45), 0 0 40px -6px rgba(26,87,214,.55);
+    border:2px solid #0a2a6b;
+  }
+  .lcd::after{ /* dot-matrix sheen */
+    content:"";position:absolute;inset:0;border-radius:6px;pointer-events:none;
+    background:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 1px, transparent 1px 11px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.10) 0 1px, transparent 1px 13px);
+    opacity:.5;mix-blend-mode:multiply;
+  }
+  .lcd__row{
+    font-family:"IBM Plex Mono";font-weight:500;color:var(--lcd-ink);
+    font-size:1.16rem;letter-spacing:.12em;white-space:pre;min-height:1.5em;
+    text-shadow:0 0 8px rgba(234,241,255,.45);
+  }
+  .device__bar{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding:0 2px}
+  .device__keys{display:flex;gap:7px}
+  .key{width:24px;height:11px;border-radius:3px;background:#22323d;border:1px solid #2c4150}
+  .key.sel{width:40px;background:linear-gradient(#2a5bd7,#1d44a8);border-color:#3a6fe0}
+  .device__id{font-family:"IBM Plex Mono";font-size:.62rem;letter-spacing:.18em;color:var(--muted-2)}
+
+  /* ---------- sections ---------- */
+  section{padding:84px 0;border-top:1px solid var(--line-soft)}
+  .head{max-width:62ch;margin-bottom:46px}
+  .head h2{font-size:clamp(1.8rem,3.6vw,2.7rem);letter-spacing:-.01em}
+  .head p{color:var(--muted);font-size:1.06rem;margin:16px 0 0}
+
+  /* motivation */
+  .motiv{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:start}
+  .quotecard{
+    background:linear-gradient(180deg,var(--panel),var(--ink-2));
+    border:1px solid var(--line);border-left:3px solid var(--signal);
+    border-radius:var(--r);padding:30px 30px;color:var(--text);font-size:1.08rem;
+  }
+  .quotecard .who{display:block;margin-top:16px;font-family:"IBM Plex Mono";font-size:.78rem;color:var(--muted);letter-spacing:.06em}
+  .notlist{display:grid;gap:14px;margin:0;padding:0;list-style:none}
+  .notlist li{display:flex;gap:14px;align-items:flex-start;color:var(--muted)}
+  .notlist b{color:var(--text);font-weight:600}
+  .x{color:var(--alert);font-family:"IBM Plex Mono";flex:0 0 auto;margin-top:2px}
+
+  /* architecture flow */
+  .flow{display:flex;flex-direction:column;align-items:center;gap:0}
+  .node{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 22px;text-align:center;min-width:210px;position:relative;
+  }
+  .node .t{font-family:"Chakra Petch";font-weight:600}
+  .node .s{font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted);letter-spacing:.05em;margin-top:3px}
+  .node.sensor{border-color:var(--signal);box-shadow:0 0 0 1px rgba(54,214,224,.25),0 0 34px -12px rgba(54,214,224,.55)}
+  .node.brain{border-color:#3a6fe0;background:linear-gradient(180deg,#142238,#0f1822)}
+  .conn{width:2px;height:34px;background:linear-gradient(var(--signal),var(--line));opacity:.6}
+  .branch{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;margin-top:0}
+  .branch .col{display:flex;flex-direction:column;align-items:center}
+  .twoconn{display:flex;gap:160px}
+  .twoconn .conn{height:30px}
+  @media(max-width:560px){.twoconn{gap:90px}}
+
+  /* how-it-works illustration grid */
+  .how-grid{display:grid;grid-template-columns:1fr 1fr;gap:46px;align-items:center}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:46px}
+  .scene__tag{
+    display:inline-flex;align-items:center;gap:8px;font-family:"Chakra Petch";font-weight:700;
+    font-size:.92rem;padding:6px 14px;border-radius:8px;margin-bottom:14px;letter-spacing:.02em;
+  }
+  .scene__tag.good{background:rgba(72,211,140,.14);color:var(--good);border:1px solid rgba(72,211,140,.4)}
+  .scene__tag.slouch{background:rgba(246,165,42,.14);color:var(--alert);border:1px solid rgba(246,165,42,.45)}
+  .scene__tag .d{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .scene{
+    background:linear-gradient(180deg,var(--panel),var(--ink-2));
+    border:1px solid var(--line);border-radius:var(--r);padding:22px 22px 16px;
+  }
+  .scene svg{width:100%;height:auto;display:block}
+  .scene__cap{
+    margin-top:14px;font-family:"IBM Plex Mono";font-size:.78rem;color:var(--muted);
+    letter-spacing:.03em;text-align:center;
+  }
+  .scene__cap b{color:var(--signal);font-weight:500}
+  .pingwave{transform-origin:210px 200px}
+  .scene.sweep .pw1{animation:arc 2.6s ease-out infinite}
+  .scene.sweep .pw2{animation:arc 2.6s ease-out .4s infinite}
+  .scene.sweep .pw3{animation:arc 2.6s ease-out .8s infinite}
+
+  /* detection / interactive */
+  .detect{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+  .sim{
+    background:linear-gradient(180deg,var(--panel),var(--ink-2));
+    border:1px solid var(--line);border-radius:var(--r);padding:26px;
+  }
+  .sim .chair{
+    position:relative;height:150px;border-radius:10px;overflow:hidden;
+    background:repeating-linear-gradient(90deg,#0e1922 0 23px,#0c161e 23px 24px);
+    border:1px solid var(--line);
+  }
+  .back{position:absolute;left:14px;top:14px;bottom:14px;width:12px;border-radius:6px;background:var(--signal);box-shadow:0 0 16px rgba(54,214,224,.6)}
+  .spine{position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:var(--text);transform:transl(-50%,-50%);transition:left .08s linear, background .2s}
+  .beam{position:absolute;left:26px;top:50%;height:2px;background:linear-gradient(90deg,var(--signal),transparent);transform:translateY(-50%);transition:width .08s linear}
+  .sim input[type=range]{width:100%;margin:22px 0 6px;accent-color:var(--signal)}
+  .sim .rng-lbl{display:flex;justify-content:space-between;font-family:"IBM Plex Mono";font-size:.72rem;color:var(--muted)}
+  .verdict{display:flex;align-items:center;gap:14px;margin-top:18px}
+  .badge{
+    font-family:"Chakra Petch";font-weight:700;font-size:1.05rem;padding:8px 16px;border-radius:8px;letter-spacing:.02em;transition:.2s;
+  }
+  .badge.good{background:rgba(72,211,140,.14);color:var(--good);border:1px solid rgba(72,211,140,.4)}
+  .badge.slouch{background:rgba(246,165,42,.14);color:var(--alert);border:1px solid rgba(246,165,42,.45)}
+  .verdict .score{font-family:"IBM Plex Mono";color:var(--muted)}
+  .logic{display:grid;gap:18px}
+  .logic .row{display:flex;gap:16px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .logic .row .ic{font-family:"IBM Plex Mono";color:var(--signal);font-size:.95rem;flex:0 0 auto;margin-top:1px}
+  .logic .row b{font-family:"Chakra Petch";display:block;margin-bottom:3px}
+  .logic .row span{color:var(--muted);font-size:.96rem}
+
+  /* steps */
+  .steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px}
+  .step{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px 20px 20px}
+  .step::before{
+    counter-increment:s;content:counter(s,decimal-leading-zero);
+    font-family:"IBM Plex Mono";font-size:.8rem;color:var(--signal);letter-spacing:.1em;
+  }
+  .step p{margin:10px 0 0;font-size:.97rem}
+  .step.done{border-color:rgba(54,214,224,.35)}
+
+  /* features */
+  .feat{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .fcard{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px;
+    display:flex;gap:13px;align-items:flex-start;transition:transform .18s,border-color .2s;
+  }
+  .fcard:hover{transform:translateY(-3px);border-color:var(--signal)}
+  .fcard .tick{color:var(--signal);font-family:"IBM Plex Mono";flex:0 0 auto}
+  .fcard span{font-size:.95rem;font-weight:500}
+
+  /* tables / wiring */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .tblcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .tblcard h3{padding:16px 20px;font-size:1rem;border-bottom:1px solid var(--line);font-family:"Chakra Petch";display:flex;align-items:center;gap:10px}
+  .tblcard h3 .pin{width:8px;height:8px;border-radius:2px;background:var(--signal)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:11px 20px;border-bottom:1px solid var(--line-soft)}
+  th{font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  td{color:var(--text)}
+  td.r,th.r{text-align:right}
+  tr:last-child td{border-bottom:none}
+  td .pinval{font-family:"IBM Plex Mono";color:var(--signal);font-size:.84rem}
+  .support{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px 24px}
+  .support h3{font-size:1rem;margin-bottom:12px}
+  .support ul{margin:0;padding-left:18px;color:var(--muted);font-size:.94rem}
+  .support code{font-family:"IBM Plex Mono";color:var(--signal);background:rgba(54,214,224,.08);padding:1px 6px;border-radius:4px;font-size:.86em}
+
+  /* audio */
+  .audio{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .track{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .track .fn{font-family:"IBM Plex Mono";font-size:.82rem;color:var(--signal);letter-spacing:.04em}
+  .track .say{margin-top:8px;font-size:1.02rem}
+  .track .role{margin-top:6px;font-family:"IBM Plex Mono";font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .wave{display:flex;gap:3px;align-items:flex-end;height:18px;margin-top:14px}
+  .wave i{width:3px;background:var(--line);border-radius:2px;height:30%}
+  .track:hover .wave i{background:var(--signal)}
+  .track:hover .wave i:nth-child(2){height:70%}.track:hover .wave i:nth-child(3){height:100%}
+  .track:hover .wave i:nth-child(4){height:55%}.track:hover .wave i:nth-child(5){height:85%}
+  .track:hover .wave i:nth-child(6){height:40%}
+
+  /* cost */
+  .costwrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .costwrap a{color:var(--signal);text-decoration:none}
+  .costwrap a:hover{text-decoration:underline}
+  .total{display:flex;justify-content:space-between;align-items:center;padding:20px 22px;background:linear-gradient(90deg,rgba(54,214,224,.06),transparent)}
+  .total .lab{font-family:"IBM Plex Mono";letter-spacing:.12em;text-transform:uppercase;font-size:.78rem;color:var(--muted)}
+  .total .val{font-family:"Chakra Petch";font-weight:700;font-size:1.8rem;color:var(--signal)}
+
+  /* gallery */
+  .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .shot{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .shot .imgwrap{position:relative;aspect-ratio:3/4;background:#0c151c;display:flex;align-items:center;justify-content:center}
+  .shot img{width:100%;height:100%;object-fit:cover}
+  .shot .ph{display:none;flex-direction:column;align-items:center;gap:8px;color:var(--muted-2);font-family:"IBM Plex Mono";font-size:.72rem;text-align:center;padding:20px}
+  .shot.missing img{display:none}
+  .shot.missing .ph{display:flex}
+  .shot figcaption{padding:14px 18px;font-size:.9rem;color:var(--muted);border-top:1px solid var(--line-soft)}
+  .shot figcaption b{color:var(--text);font-weight:600;display:block;font-family:"Chakra Petch";margin-bottom:2px}
+  .progress-note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--alert);border-radius:12px;padding:18px 22px;margin-bottom:30px;color:var(--muted)}
+  .progress-note b{color:var(--text)}
+
+  /* demo + testing two col */
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .ol{counter-reset:d;list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  .ol li{display:flex;gap:14px;color:var(--muted)}
+  .ol li::before{counter-increment:d;content:counter(d);font-family:"IBM Plex Mono";color:var(--signal);font-size:.82rem;flex:0 0 24px;height:24px;width:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:50%}
+  .checks{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+  .checks li{display:flex;gap:12px;color:var(--muted)}
+  .checks li::before{content:"✓";color:var(--good);font-family:"IBM Plex Mono"}
+
+  /* footer */
+  footer{border-top:1px solid var(--line-soft);padding:56px 0 40px}
+  .foot{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-end}
+  .foot .ack{max-width:52ch;color:var(--muted)}
+  .foot .ack a{color:var(--signal);text-decoration:none}
+  .foot .ack a:hover{text-decoration:underline}
+  .tech{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}
+  .tech span{font-family:"IBM Plex Mono";font-size:.68rem;color:var(--muted-2);border:1px solid var(--line-soft);border-radius:5px;padding:3px 8px}
+  .copy{font-family:"IBM Plex Mono";font-size:.74rem;color:var(--muted-2);letter-spacing:.05em}
+
+  /* reveal */
+  .rv{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+  .rv.in{opacity:1;transform:none}
+
+  @media(max-width:900px){
+    .hero__grid,.motiv,.detect,.grid2,.twocol,.how-grid,.compare{grid-template-columns:1fr}
+    .hero__grid{gap:42px}
+    .gal{grid-template-columns:1fr 1fr}
+    .stage{order:-1}
+  }
+  @media(max-width:560px){.gal{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;scroll-behavior:auto}
+    .rv{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="wrap nav__inner">
+    <div class="brand"><span class="dot"></span> Posture&nbsp;Pilot</div>
+    <nav class="nav__links">
+      <a href="#build">Build</a>
+      <a href="#how">How it works</a>
+      <a href="#detect">Detection</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#cost">Cost</a>
+      <a href="https://github.com/wuisabel-gif/PosturePilot" target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero" style="border-top:none">
+  <div class="wrap hero__grid">
+    <div class="rv in">
+      <p class="eyebrow">Embedded ergonomic monitor</p>
+      <h1>Posture<span class="b">Pilot</span></h1>
+      <p class="hero__sub">One ultrasonic sensor clips to the back of your chair and tracks how you sit. No camera in your face, nothing strapped to your body.</p>
+      <div class="meta">
+        <span class="chip">Arduino Uno R3</span>
+        <span class="chip">ATmega328P</span>
+        <span class="chip">HC-SR04</span>
+        <span class="chip">Embedded C</span>
+        <span class="chip">~$55.50 BOM</span>
+      </div>
+      <div class="cta">
+        <a class="btn btn--primary" href="#build">See the build</a>
+        <a class="btn btn--ghost" href="https://github.com/wuisabel-gif/PosturePilot" target="_blank" rel="noopener">View on GitHub ↗</a>
+      </div>
+    </div>
+
+    <!-- SIGNATURE: live LCD + ultrasonic ping -->
+    <div class="stage">
+      <div class="ping sweep" aria-hidden="true">
+        <svg viewBox="0 0 230 124">
+          <circle cx="18" cy="62" r="5" fill="var(--signal)"/>
+          <g class="arcs">
+            <path class="arc a1" d="M40 32 A 60 60 0 0 1 40 92"/>
+            <path class="arc a2" d="M58 24 A 90 90 0 0 1 58 100"/>
+            <path class="arc a3" d="M76 16 A 120 120 0 0 1 76 108"/>
+          </g>
+        </svg>
+        <div class="readout">
+          <div class="big" id="rdDist">14.0 cm</div>
+          <div class="small">BASE&nbsp;14&nbsp;CM</div>
+        </div>
+      </div>
+
+      <div class="device">
+        <div class="lcd" id="lcd" aria-label="16 by 2 character display">
+          <div class="lcd__row" data-row="0"></div>
+          <div class="lcd__row" data-row="1"></div>
+        </div>
+        <div class="device__bar">
+          <div class="device__keys">
+            <span class="key sel" title="SELECT"></span>
+            <span class="key"></span><span class="key"></span><span class="key"></span>
+          </div>
+          <span class="device__id">1602 · HD44780</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BUILD / GALLERY -->
+<section id="build">
+  <div class="wrap">
+    <div class="head rv in">
+      <p class="eyebrow">// Current progress</p>
+      <h2>The first physical build.</h2>
+    </div>
+    <div class="progress-note rv in">
+      The first design is done. I used a massage back pad and a hair clip to hold the <b>ultrasonic sensor against the chair back</b>, and the breadboard and Arduino sit on the chair arm. Still waiting on the speaker and TF card.
+    </div>
+    <div class="gal rv in">
+      <figure class="shot">
+        <div class="imgwrap">
+          <img src="asset/Ultrasonic_Sensor.jpg" alt="Ultrasonic sensor mounted on massage back pad" loading="lazy" onerror="this.closest('.shot').classList.add('missing')">
+          <div class="ph"><span>asset/Ultrasonic_Sensor.jpg</span><span>image loads in the repo</span></div>
+        </div>
+        <figcaption><b>Sensor on the back pad</b>HC-SR04 clipped to the massage pad, aimed at the mid-back.</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="imgwrap">
+          <img src="asset/Arm_chair.jpg" alt="Full chair setup with mounted sensor and electronics" loading="lazy" onerror="this.closest('.shot').classList.add('missing')">
+          <div class="ph"><span>asset/Arm_chair.jpg</span><span>image loads in the repo</span></div>
+        </div>
+        <figcaption><b>Full chair setup</b>Sensor, electronics and chair assembled together.</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="imgwrap">
+          <img src="asset/Breadboard.jpg" alt="Breadboard and Arduino mounted on chair arm" loading="lazy" onerror="this.closest('.shot').classList.add('missing')">
+          <div class="ph"><span>asset/Breadboard.jpg</span><span>image loads in the repo</span></div>
+        </div>
+        <figcaption><b>Breadboard on the arm</b>Arduino and wiring mounted within easy reach.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- MOTIVATION -->
+<section id="why">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Motivation</p>
+      <h2>Sitting badly for years sent me to the doctor.</h2>
+    </div>
+    <div class="motiv">
+      <div class="quotecard rv">
+        As an engineering student, I spend long hours sitting while studying and working on projects. Over time, this led to noticeable middle back pain and eventually required a doctor visit. That experience made posture feel less like a small habit issue and more like a real health problem worth addressing early.
+        <span class="who">— Project author</span>
+      </div>
+      <ul class="notlist rv">
+        <li><span class="x">✕</span><span>Most posture gadgets cost a lot, and some <b>lock features behind a subscription</b>.</span></li>
+        <li><span class="x">✕</span><span>Wearables mean <b>something strapped to you</b> all day.</span></li>
+        <li><span class="x">✕</span><span>Camera setups watch you at your desk — and that's a <b>privacy problem</b>.</span></li>
+        <li><span class="x" style="color:var(--good)">✓</span><span>Posture Pilot just measures distance against a <b>baseline you set once</b>.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// System architecture</p>
+      <h2>From the sensor to the reminder.</h2>
+      <p>The HC-SR04 sits on the chair back and measures the gap to your spine. The Arduino filters those readings and decides whether you're slouching. If you are, it lights up the screen and triggers the speaker.</p>
+    </div>
+    <div class="compare">
+      <div class="scene sweep rv">
+        <span class="scene__tag good"><span class="d"></span>Good posture</span>
+        <svg viewBox="0 0 540 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A student sitting upright in a chair, with the ultrasonic sensor on the backrest measuring the distance to their back.">
+          <!-- floor shadow -->
+          <ellipse cx="250" cy="392" rx="170" ry="13" fill="rgba(54,214,224,.08)"/>
+          <line x1="40" y1="392" x2="500" y2="392" stroke="var(--line)" stroke-width="2"/>
+
+          <!-- chair base -->
+          <g stroke="var(--muted)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="210" y1="300" x2="210" y2="348"/>
+            <line x1="210" y1="348" x2="164" y2="364"/>
+            <line x1="210" y1="348" x2="258" y2="364"/>
+          </g>
+          <circle cx="160" cy="368" r="6" fill="var(--ink)" stroke="var(--muted)" stroke-width="3"/>
+          <circle cx="262" cy="368" r="6" fill="var(--ink)" stroke="var(--muted)" stroke-width="3"/>
+
+          <!-- chair backrest (behind student) -->
+          <path d="M186 250 L170 152 Q170 145 178 145 L190 146 Q197 147 198 154 L206 246 Z"
+                fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3" stroke-linejoin="round"/>
+          <!-- seat -->
+          <rect x="172" y="246" width="98" height="15" rx="7" fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3"/>
+
+          <!-- sensor on backrest -->
+          <circle cx="200" cy="200" r="26" fill="rgba(54,214,224,.10)"/>
+          <rect x="184" y="190" width="26" height="18" rx="3" fill="var(--ink)" stroke="var(--signal)" stroke-width="2.5"/>
+          <circle cx="192" cy="199" r="3.2" fill="none" stroke="var(--signal)" stroke-width="2"/>
+          <circle cx="202" cy="199" r="3.2" fill="none" stroke="var(--signal)" stroke-width="2"/>
+
+          <!-- ultrasonic ping arcs toward the back -->
+          <g class="pingwave" fill="none" stroke="var(--signal)" stroke-width="2.5" stroke-linecap="round">
+            <path class="pw1" d="M220 188 A 18 18 0 0 1 220 212" opacity=".9"/>
+            <path class="pw2" d="M230 182 A 28 28 0 0 1 230 218" opacity=".6"/>
+            <path class="pw3" d="M240 176 A 38 38 0 0 1 240 224" opacity=".35"/>
+          </g>
+
+          <!-- distance marker -->
+          <g stroke="var(--signal)" stroke-width="1.4" opacity=".8">
+            <line x1="214" y1="232" x2="240" y2="232" stroke-dasharray="3 3"/>
+            <line x1="214" y1="228" x2="214" y2="236"/>
+            <line x1="240" y1="228" x2="240" y2="236"/>
+          </g>
+          <text x="227" y="250" text-anchor="middle" fill="var(--signal)" font-family="IBM Plex Mono, monospace" font-size="12">≈ 14 cm</text>
+
+          <!-- desk -->
+          <rect x="300" y="206" width="188" height="12" rx="4" fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3"/>
+          <line x1="314" y1="218" x2="314" y2="384" stroke="var(--muted)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="472" y1="218" x2="472" y2="384" stroke="var(--muted)" stroke-width="4" stroke-linecap="round"/>
+          <!-- laptop -->
+          <path d="M392 206 L398 170 L444 170 L450 206 Z" fill="var(--ink)" stroke="var(--text)" stroke-width="3" stroke-linejoin="round"/>
+          <line x1="406" y1="180" x2="436" y2="180" stroke="var(--signal)" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+          <line x1="406" y1="188" x2="430" y2="188" stroke="var(--signal)" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+
+          <!-- student upright (faces right) -->
+          <g fill="none" stroke="var(--text)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M218 250 L292 251"/>
+            <path d="M292 251 L297 372"/>
+            <path d="M297 372 L322 376"/>
+            <path d="M219 250 C214 216, 229 196, 237 170"/>
+            <path d="M237 174 L259 207 L300 211"/>
+          </g>
+          <line x1="240" y1="170" x2="244" y2="160" stroke="var(--text)" stroke-width="6.5" stroke-linecap="round"/>
+          <circle cx="247" cy="148" r="18" fill="var(--ink)" stroke="var(--text)" stroke-width="3.5"/>
+          <path d="M230 150 Q229 131 247 131 Q263 131 264 147" fill="none" stroke="var(--text)" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+        <p class="scene__cap">Back stays near the chair — sensor reads <b>~14 cm</b>.</p>
+      </div>
+
+      <div class="scene sweep rv">
+        <span class="scene__tag slouch"><span class="d"></span>Slouching</span>
+        <svg viewBox="0 0 540 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A student slouching forward in the same chair, leaning away from the backrest so the measured distance grows.">
+          <!-- floor shadow -->
+          <ellipse cx="250" cy="392" rx="170" ry="13" fill="rgba(246,165,42,.08)"/>
+          <line x1="40" y1="392" x2="500" y2="392" stroke="var(--line)" stroke-width="2"/>
+
+          <!-- chair base -->
+          <g stroke="var(--muted)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="210" y1="300" x2="210" y2="348"/>
+            <line x1="210" y1="348" x2="164" y2="364"/>
+            <line x1="210" y1="348" x2="258" y2="364"/>
+          </g>
+          <circle cx="160" cy="368" r="6" fill="var(--ink)" stroke="var(--muted)" stroke-width="3"/>
+          <circle cx="262" cy="368" r="6" fill="var(--ink)" stroke="var(--muted)" stroke-width="3"/>
+
+          <!-- chair backrest (behind student) -->
+          <path d="M186 250 L170 152 Q170 145 178 145 L190 146 Q197 147 198 154 L206 246 Z"
+                fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3" stroke-linejoin="round"/>
+          <!-- seat -->
+          <rect x="172" y="246" width="98" height="15" rx="7" fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3"/>
+
+          <!-- sensor on backrest -->
+          <circle cx="200" cy="200" r="26" fill="rgba(246,165,42,.10)"/>
+          <rect x="184" y="190" width="26" height="18" rx="3" fill="var(--ink)" stroke="var(--alert)" stroke-width="2.5"/>
+          <circle cx="192" cy="199" r="3.2" fill="none" stroke="var(--alert)" stroke-width="2"/>
+          <circle cx="202" cy="199" r="3.2" fill="none" stroke="var(--alert)" stroke-width="2"/>
+
+          <!-- ultrasonic ping arcs reaching further to the displaced back -->
+          <g class="pingwave" fill="none" stroke="var(--alert)" stroke-width="2.5" stroke-linecap="round">
+            <path class="pw1" d="M224 184 A 24 24 0 0 1 224 216" opacity=".9"/>
+            <path class="pw2" d="M238 176 A 38 38 0 0 1 238 224" opacity=".6"/>
+            <path class="pw3" d="M252 168 A 52 52 0 0 1 252 232" opacity=".35"/>
+          </g>
+
+          <!-- distance marker (wider gap) -->
+          <g stroke="var(--alert)" stroke-width="1.4" opacity=".85">
+            <line x1="214" y1="236" x2="252" y2="236" stroke-dasharray="3 3"/>
+            <line x1="214" y1="232" x2="214" y2="240"/>
+            <line x1="252" y1="232" x2="252" y2="240"/>
+          </g>
+          <text x="233" y="254" text-anchor="middle" fill="var(--alert)" font-family="IBM Plex Mono, monospace" font-size="12">≈ 22 cm</text>
+
+          <!-- desk -->
+          <rect x="300" y="206" width="188" height="12" rx="4" fill="var(--panel-2)" stroke="var(--muted)" stroke-width="3"/>
+          <line x1="314" y1="218" x2="314" y2="384" stroke="var(--muted)" stroke-width="4" stroke-linecap="round"/>
+          <line x1="472" y1="218" x2="472" y2="384" stroke="var(--muted)" stroke-width="4" stroke-linecap="round"/>
+          <!-- laptop -->
+          <path d="M392 206 L398 170 L444 170 L450 206 Z" fill="var(--ink)" stroke="var(--text)" stroke-width="3" stroke-linejoin="round"/>
+          <line x1="406" y1="180" x2="436" y2="180" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+          <line x1="406" y1="188" x2="430" y2="188" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+
+          <!-- student slouched: rounded back, leaned forward toward the desk -->
+          <g fill="none" stroke="var(--text)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M218 250 L292 251"/>
+            <path d="M292 251 L297 372"/>
+            <path d="M297 372 L322 376"/>
+            <!-- hunched spine bulging away from the chair, head dropped forward -->
+            <path d="M219 250 C236 224, 246 206, 262 192"/>
+            <!-- arm slumped onto the desk -->
+            <path d="M260 194 L276 214 L300 213"/>
+          </g>
+          <!-- neck dropped forward -->
+          <line x1="263" y1="191" x2="273" y2="184" stroke="var(--text)" stroke-width="6.5" stroke-linecap="round"/>
+          <!-- head, lower and forward -->
+          <circle cx="282" cy="174" r="18" fill="var(--ink)" stroke="var(--text)" stroke-width="3.5"/>
+          <!-- hair -->
+          <path d="M266 178 Q263 158 281 156 Q297 155 299 170" fill="none" stroke="var(--text)" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+        <p class="scene__cap">Leaning forward off the backrest — gap grows to <b style="color:var(--alert)">~22 cm</b>.</p>
+      </div>
+    </div>
+
+    <div class="flow rv">
+      <div class="node"><div class="t">User</div><div class="s">mid-back · reflective target</div></div>
+      <div class="conn"></div>
+      <div class="node sensor"><div class="t">HC-SR04 Ultrasonic Sensor</div><div class="s">mounted on chair back</div></div>
+      <div class="conn"></div>
+      <div class="node brain"><div class="t">Arduino Uno</div><div class="s">ATmega328P · filter + decide</div></div>
+      <div class="twoconn"><div class="conn"></div><div class="conn"></div></div>
+      <div class="branch">
+        <div class="col"><div class="node"><div class="t">LCD Shield</div><div class="s">16×2 status display</div></div></div>
+        <div class="col">
+          <div class="node"><div class="t">MP3-TF-16P</div><div class="s">voice playback</div></div>
+          <div class="conn"></div>
+          <div class="node"><div class="t">Speaker</div><div class="s">audio reminders</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DETECTION -->
+<section id="detect">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Detection logic</p>
+      <h2>It checks every reading against your baseline.</h2>
+      <p>Once you've calibrated, good posture just means the reading stays near your baseline. Slouch forward and the gap opens up. Drag the slider to run the same check the firmware runs.</p>
+    </div>
+    <div class="detect">
+      <div class="sim rv">
+        <div class="chair">
+          <div class="back"></div>
+          <div class="beam" id="beam"></div>
+          <div class="spine" id="spine"></div>
+        </div>
+        <input type="range" id="dist" min="13" max="28" value="14" step="0.5" aria-label="Back-to-chair distance">
+        <div class="rng-lbl"><span>Baseline 14 cm</span><span id="distLab">14.0 cm</span></div>
+        <div class="verdict">
+          <span class="badge good" id="badge">Posture Good</span>
+          <span class="score" id="score">Score: 94%</span>
+        </div>
+      </div>
+      <div class="logic rv">
+        <div class="row"><span class="ic">≈</span><div><b>Good posture</b><span>Current distance stays near the baseline captured at calibration.</span></div></div>
+        <div class="row"><span class="ic">∑</span><div><b>Filtered sampling</b><span>It averages a handful of readings and trims the outliers before changing state, so a twitch or a noisy ping won't trip it.</span></div></div>
+        <div class="row"><span class="ic">⏱</span><div><b>Sustained-slouch</b><span>The warning only fires after several slouchy readings in a row — reaching for your coffee won't set it off.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CALIBRATION -->
+<section id="calibrate">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Calibration · a real sequence</p>
+      <h2>One press sets your personal baseline.</h2>
+    </div>
+    <div class="steps rv">
+      <div class="step"><p>Sit upright in your chair.</p></div>
+      <div class="step"><p>Press the LCD shield <b>SELECT</b> button.</p></div>
+      <div class="step"><p>The current distance is stored as your baseline posture.</p></div>
+      <div class="step"><p>The system announces <b>"Calibration complete."</b></p></div>
+      <div class="step done"><p>Continuous posture monitoring begins.</p></div>
+    </div>
+    <p class="mono" style="margin-top:22px;color:var(--muted);font-size:.86rem">› The baseline comes from several filtered readings, not one raw ping — so it holds steady.</p>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Features</p>
+      <h2>Everything runs on-device.</h2>
+    </div>
+    <div class="feat rv">
+      <div class="fcard"><span class="tick">▹</span><span>Real-time posture monitoring</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Personalized posture calibration</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Chair-mounted sensing system</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>LCD status display</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Startup voice prompt</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Voice-based posture reminders</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Audio break reminder</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Filtered ultrasonic sensing</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Sustained-slouch detection</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Adjustable slouch threshold</span></div>
+      <div class="fcard"><span class="tick">▹</span><span>Fully standalone embedded system</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- HARDWARE + WIRING -->
+<section id="hardware">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Hardware · wiring</p>
+      <h2>Pin map.</h2>
+      <p>Core build: Arduino Uno R3, LCD Keypad Shield, HC-SR04, MP3-TF-16P, a small speaker, breadboard and jumper wires. Optional: battery pack, mounting bracket, 3D-printed enclosure.</p>
+    </div>
+
+    <div class="grid2 rv">
+      <div class="tblcard">
+        <h3><span class="pin"></span>HC-SR04 Ultrasonic Sensor</h3>
+        <table>
+          <thead><tr><th>HC-SR04</th><th>Arduino Uno</th></tr></thead>
+          <tbody>
+            <tr><td>VCC</td><td><span class="pinval">5V</span></td></tr>
+            <tr><td>GND</td><td><span class="pinval">GND</span></td></tr>
+            <tr><td>TRIG</td><td><span class="pinval">D3 / PD3</span></td></tr>
+            <tr><td>ECHO</td><td><span class="pinval">D2 / PD2</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tblcard">
+        <h3><span class="pin"></span>MP3-TF-16P</h3>
+        <table>
+          <thead><tr><th>MP3-TF-16P</th><th>Arduino Uno</th></tr></thead>
+          <tbody>
+            <tr><td>VCC</td><td><span class="pinval">5V</span></td></tr>
+            <tr><td>GND</td><td><span class="pinval">GND</span></td></tr>
+            <tr><td>RX</td><td><span class="pinval">D11 / PB3 · via 1k Ω</span></td></tr>
+            <tr><td>TX</td><td><span class="pinval" style="color:var(--muted-2)">not used</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tblcard">
+        <h3><span class="pin"></span>Speaker</h3>
+        <table>
+          <thead><tr><th>Speaker</th><th>MP3-TF-16P</th></tr></thead>
+          <tbody>
+            <tr><td>Positive</td><td><span class="pinval">SPK_1</span></td></tr>
+            <tr><td>Negative</td><td><span class="pinval">SPK_2</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tblcard">
+        <h3><span class="pin"></span>LCD Keypad Shield</h3>
+        <table>
+          <thead><tr><th>Function</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Display</td><td><span class="pinval">16×2 character LCD</span></td></tr>
+            <tr><td>SELECT button</td><td><span class="pinval">A0 / ADC0</span></td></tr>
+            <tr><td>Mounting</td><td><span class="pinval">plugs onto Uno</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="support rv">
+      <h3>Recommended support parts for the MP3 module</h3>
+      <ul>
+        <li><code>1k Ω</code> resistor between Arduino <code>D11</code> and MP3 <code>RX</code></li>
+        <li><code>100 µF</code> capacitor across MP3 <code>VCC</code> and <code>GND</code></li>
+        <li><code>0.1 µF</code> ceramic bypass capacitor near the module power pins</li>
+        <li>FAT32-formatted microSD / TF card</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIO -->
+<section id="audio">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Audio prompts</p>
+      <h2>Four voice tracks on the TF card.</h2>
+      <p>Stored on the microSD card and named exactly so the firmware can call them by index.</p>
+    </div>
+    <div class="audio rv">
+      <div class="track"><div class="fn">/mp3/0004.mp3</div><div class="say">"System starting."</div><div class="role">Track 4 · Startup</div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="track"><div class="fn">/mp3/0002.mp3</div><div class="say">"Calibration complete."</div><div class="role">Track 2 · Calibration</div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="track"><div class="fn">/mp3/0001.mp3</div><div class="say">"Please sit upright."</div><div class="role">Track 1 · Slouch warning</div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      <div class="track"><div class="fn">/mp3/0003.mp3</div><div class="say">"Time to take a break."</div><div class="role">Track 3 · Break reminder</div><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- COST -->
+<section id="cost">
+  <div class="wrap">
+    <div class="head rv">
+      <p class="eyebrow">// Bill of materials</p>
+      <h2>Around $55 in parts.</h2>
+    </div>
+    <div class="costwrap rv">
+      <table>
+        <thead><tr><th>Item</th><th class="r">Unit cost</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://www.sparkfun.com/ultrasonic-distance-sensor-hc-sr04.html" target="_blank" rel="noopener">Ultrasonic Distance Sensor — HC-SR04</a></td><td class="r">$5.25</td><td style="color:var(--muted)">Single sensor</td></tr>
+          <tr><td><a href="https://www.amazon.com/Yuuhseel-Player-Support-Compatible-DFPlayer/dp/B0G133NWK3/" target="_blank" rel="noopener">MP3-TF-16P</a></td><td class="r">$1.75</td><td style="color:var(--muted)">From $13.99 for 8 pcs</td></tr>
+          <tr><td><a href="https://www.amazon.com/dp/B09MRK24PP" target="_blank" rel="noopener">Small speaker</a></td><td class="r">$1.50</td><td style="color:var(--muted)">From $8.99 for 6 pcs</td></tr>
+          <tr><td>TF card</td><td class="r">$9.50</td><td style="color:var(--muted)">Single card</td></tr>
+          <tr><td><a href="https://www.digikey.com/en/products/detail/dfrobot/DFR0009/7597118" target="_blank" rel="noopener">1602 LCD Keypad Shield</a></td><td class="r">$9.90</td><td style="color:var(--muted)">Single unit</td></tr>
+          <tr><td><a href="https://www.digikey.com/en/products/detail/arduino/A000066/2784006" target="_blank" rel="noopener">Arduino Uno R3 (ATmega328P)</a></td><td class="r">$27.60</td><td style="color:var(--muted)">Single board</td></tr>
+        </tbody>
+      </table>
+      <div class="total"><span class="lab">Estimated total cost</span><span class="val">$55.50</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO + TESTING -->
+<section id="demo">
+  <div class="wrap">
+    <div class="twocol">
+      <div class="rv">
+        <p class="eyebrow">// Demo script</p>
+        <h2 style="font-size:1.7rem;margin-bottom:24px">Run the demo</h2>
+        <ol class="ol">
+          <li>Power on and wait for the startup screen and startup audio.</li>
+          <li>Press the LCD shield <b style="color:var(--text)">SELECT</b> button while sitting upright.</li>
+          <li>Show the calibration-complete screen and audio prompt.</li>
+          <li>Sit with good posture and show the stable Posture Good status.</li>
+          <li>Deliberately slouch for several seconds to trigger sustained-slouch detection.</li>
+          <li>Let the system play the posture warning audio.</li>
+          <li>Explain the multi-sample filtering behind each decision.</li>
+        </ol>
+      </div>
+      <div class="rv">
+        <p class="eyebrow">// Testing notes</p>
+        <h2 style="font-size:1.7rem;margin-bottom:24px">Before final assembly</h2>
+        <ul class="checks">
+          <li>Calibration repeats multiple times without a power reset.</li>
+          <li>HC-SR04 returns stable readings at the expected back-to-chair distance.</li>
+          <li>TF card is readable and correctly formatted.</li>
+          <li>Audio files named exactly 0001–0004.mp3.</li>
+          <li>Both brief shifts and sustained slouching tested so the threshold can be tuned.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap foot">
+    <div class="ack">
+      <div class="brand" style="margin-bottom:14px"><span class="dot"></span> Posture Pilot</div>
+      <p>Low-level embedded style learned through USC's EE109 — especially LCD interfacing and pin-change interrupts. Course labs: <a href="https://bytes.usc.edu/ee109/labs/" target="_blank" rel="noopener">USC EE109 Labs</a>.</p>
+      <div class="tech">
+        <span>Embedded C</span><span>ATmega328P</span><span>Arduino Uno R3</span><span>Ultrasonic sensing</span><span>Serial communication</span><span>MP3 audio playback</span><span>Real-time monitoring</span><span>Human factors engineering</span>
+      </div>
+    </div>
+    <div class="copy">© 2026 wuisabel-gif · <a href="https://github.com/wuisabel-gif/PosturePilot" target="_blank" rel="noopener" style="color:var(--signal);text-decoration:none">github.com/wuisabel-gif/PosturePilot</a></div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- LCD hero cycle ---- */
+  var screens = [
+    {l1:"Posture Pilot",  l2:"Press SELECT",  dist:"14.0 cm", col:"var(--signal)"},
+    {l1:"Calibrated!",    l2:"Base: 14 cm",   dist:"14.0 cm", col:"var(--signal)"},
+    {l1:"Posture Good",   l2:"Score: 94%",    dist:"14.2 cm", col:"var(--good)"},
+    {l1:"SLOUCHING!",     l2:"Score: 51%",    dist:"22.0 cm", col:"var(--alert)"}
+  ];
+  var rows = document.querySelectorAll('#lcd .lcd__row');
+  var rd = document.getElementById('rdDist');
+  var idx = 0, typer = null;
+
+  function pad(s){ s = s.slice(0,16); return s; }
+
+  function showScreen(s){
+    rd.textContent = s.dist; rd.style.color = s.col;
+    if(reduce){ rows[0].textContent = pad(s.l1); rows[1].textContent = pad(s.l2); return; }
+    var l1 = pad(s.l1), l2 = pad(s.l2), i = 0;
+    rows[0].textContent = ''; rows[1].textContent = '';
+    clearInterval(typer);
+    typer = setInterval(function(){
+      if(i < l1.length) rows[0].textContent += l1[i];
+      if(i < l2.length) rows[1].textContent += l2[i];
+      i++;
+      if(i >= Math.max(l1.length,l2.length)) clearInterval(typer);
+    }, 42);
+  }
+  function nextScreen(){ showScreen(screens[idx]); idx = (idx+1) % screens.length; }
+  nextScreen();
+  if(!reduce) setInterval(nextScreen, 3000);
+
+  /* ---- Detection simulator ---- */
+  var slider = document.getElementById('dist');
+  var spine = document.getElementById('spine');
+  var beam = document.getElementById('beam');
+  var badge = document.getElementById('badge');
+  var score = document.getElementById('score');
+  var distLab = document.getElementById('distLab');
+  var BASE = 14, THRESH = 6; // cm
+
+  function updateSim(){
+    var d = parseFloat(slider.value);
+    var pct = (d - 13) / (28 - 13);           // 0..1 across chair width
+    var leftPx = 30 + pct * 60;               // % position of spine
+    spine.style.left = leftPx + '%';
+    beam.style.width = (12 + pct * 62) + '%';
+    distLab.textContent = d.toFixed(1) + ' cm';
+
+    var delta = d - BASE;
+    var sc = Math.max(38, Math.round(96 - delta * 7));
+    if(delta >= THRESH){
+      badge.textContent = 'SLOUCHING';
+      badge.className = 'badge slouch';
+      spine.style.background = 'var(--alert)';
+    } else {
+      badge.textContent = 'Posture Good';
+      badge.className = 'badge good';
+      spine.style.background = 'var(--text)';
+    }
+    score.textContent = 'Score: ' + sc + '%';
+  }
+  slider.addEventListener('input', updateSim);
+  updateSim();
+
+  /* ---- scroll reveal ---- */
+  if('IntersectionObserver' in window && !reduce){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+    }, {threshold:.12});
+    document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
+  } else {
+    document.querySelectorAll('.rv').forEach(function(el){ el.classList.add('in'); });
+  }
+})();
+</script>
+</body>
+</html>
